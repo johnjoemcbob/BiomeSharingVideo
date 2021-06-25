@@ -9,14 +9,17 @@ public class Game : MonoBehaviour
 {
 	public static Game Instance;
 
-	public const float END_CARD_TIME = 6;
+	public const float END_CARD_TIME = 7;
+	public const float END_CARD_MUSIC_FADE_MULT = 3;
+	public const float CLIP_LENGTH = 12;
 
 	#region Struct/Enum Defines
 	[Serializable]
 	public struct Sharing
 	{
-		public VideoClip Clip;
+		public string ClipURL;
 		public string Credit;
+		public float Length;
 	}
 	[Serializable]
 	public struct SharingMusic
@@ -24,8 +27,15 @@ public class Game : MonoBehaviour
 		public AudioClip Clip;
 		public string Credit;
 	}
+	[Serializable]
+	public struct EndCard
+	{
+		public string ClipURL;
+		public string Credit;
+	}
+	//file:///E:/Projects/BiomeSharingVideo/Assets/BiomeSharingVideo/Videos/Endcards/04_tom.mp4
 
-	public enum State
+	public enum PlayState
 	{
 		Playing,
 		CrossFading,
@@ -42,6 +52,7 @@ public class Game : MonoBehaviour
 
 	#region Variables - Inspector
 	[Header( "Variables" )]
+	public int CurrentEndCard = 0;
 	public float CrossFadeSpeed = 2;
 	public int TestVideoStart = 0;
 
@@ -50,17 +61,22 @@ public class Game : MonoBehaviour
 	public AudioSource[] MusicSources;
 	public Text SharingCredit;
 	public Text MusicCredit;
+	public Text EndCardCredit;
 	public GameObject CreditBar;
 	public GameObject MusicCreditBar;
+	public GameObject EndCardCreditBar;
 
 	[Header( "Assets" )]
-	public Sharing[] Sharings;
+	public AudioClip GenerativeMusic;
 	public SharingMusic[] Musics;
-	public VideoClip[] EndCards;
+	public EndCard[] EndCards;
 	#endregion
 
 	#region Variables - Private
-	private State CurrentState;
+	[HideInInspector]
+	private List<Sharing> Sharings = new List<Sharing>();
+
+	private PlayState CurrentPlayState;
 	private MusicState CurrentMusicState;
 
 	private int CurrentVideo = 0;
@@ -69,12 +85,12 @@ public class Game : MonoBehaviour
 	private int CurrentFrontPlayer = 0;
 	private int CurrentFrontMusicPlayer = 0;
 
-	private int[] VideoOrder;
+	private List<int> VideoOrder = new List<int>();
 	private int[] MusicOrder;
 
 	[HideInInspector]
 	public float CurrentTime = 0;
-	private float CurrentStateTime = 0;
+	private float CurrentPlayStateTime = 0;
 	private float CurrentMusicStateTime = 0;
 	private float NextMusicPlay = -1;
 
@@ -92,9 +108,27 @@ public class Game : MonoBehaviour
 
 	void Start()
     {
-		SetState( State.Playing );
+		SetPlayState( PlayState.Playing );
 
-		AddVideo( "E:/Projects/BiomeSharingVideo/Assets/BiomeSharingVideo/Videos/ally_cross.mp4" );
+		CreditBar.SetActive( true );
+		MusicCreditBar.SetActive( true );
+		EndCardCreditBar.SetActive( false );
+
+		// TODO TEMP
+		if ( Sharings.Count == 0 )
+		{
+			// johnjoemcbob NiallEM Wallmasterr DouglasFlinders Henwuar jctwizard shimmerwitch AllThingsTruly GhostTyrant _kaymay tomdemajo
+			var root = "file:///E:/zOBS Video Recordings/biome sharings/21-06-18/";
+			AddVideo( root + "john.mp4", "@johnjoemcbob" );
+			AddVideo( root + "vrchat1.mp4", "@johnjoemcbob\n@GhostTyrant\n@DrMelon\n@leafcodes", 4 );
+			AddVideo( root + "vrchat2.mp4", "@johnjoemcbob\n@GhostTyrant\n@DrMelon\n@leafcodes", 4 );
+			AddVideo( root + "vrchat3.mp4", "@johnjoemcbob\n@GhostTyrant\n@DrMelon\n@leafcodes", 4 );
+			AddVideo( root + "caspar.mp4", "@GhostTyrant" );
+			AddVideo( root + "ally1.mp4", "@Wallmasterr", 4 );
+			AddVideo( root + "ally2.mp4", "@Wallmasterr", 8 );
+			AddVideo( root + "henry.mp4", "@Henwuar" );
+			AddVideo( root + "niall.mp4", "@NiallEM" );
+		}
 
 		CurrentVideo = TestVideoStart;
 		PlayCurrentClip();
@@ -112,7 +146,7 @@ public class Game : MonoBehaviour
 		VideoLength = 0;
 		foreach ( var share in Sharings )
 		{
-			VideoLength += share.Clip.length;
+			VideoLength += share.Length; // TODO Calculate by divisor of exact credit occurances
 		}
 
 		CurrentTime = 0;
@@ -124,7 +158,7 @@ public class Game : MonoBehaviour
     {
 		CurrentTime += Time.deltaTime;
 
-		UpdateState( CurrentState );
+		UpdatePlayState( CurrentPlayState );
 		UpdateMusic();
 
 		if ( Input.GetKeyDown( KeyCode.Space ) )
@@ -137,37 +171,44 @@ public class Game : MonoBehaviour
 	#endregion
 
 	#region States
-	public void SwitchState( State newstate )
+	public void SwitchPlayState( PlayState newstate )
 	{
-		FinishState( CurrentState );
-		SetState( newstate );
+		FinishPlayState( CurrentPlayState );
+		SetPlayState( newstate );
 	}
 
-	void SetState( State newstate )
+	void SetPlayState( PlayState newstate )
 	{
-		CurrentState = newstate;
-		CurrentStateTime = 0;
-		StartState( CurrentState );
+		CurrentPlayState = newstate;
+		CurrentPlayStateTime = 0;
+		StartPlayState( CurrentPlayState );
 	}
 
-	void StartState( State state )
+	void StartPlayState( PlayState state )
 	{
 		switch ( state )
 		{
-			case State.Playing:
+			case PlayState.Playing:
 				break;
-			case State.CrossFading:
+			case PlayState.CrossFading:
 				break;
-			case State.Endcard:
+			case PlayState.Endcard:
 				// Endcard
 				CreditBar.SetActive( false );
 				MusicCreditBar.SetActive( false );
+				EndCardCreditBar.SetActive( true );
+				EndCardCredit.text = EndCards[CurrentEndCard].Credit;
 
 				SwitchPlayer();
-				Players[CurrentFrontPlayer].clip = EndCards[0]; // TODO randomise
+				Players[CurrentFrontPlayer].url = EndCards[CurrentEndCard].ClipURL; // TODO randomise
+
+				Players[CurrentFrontPlayer].audioOutputMode = VideoAudioOutputMode.AudioSource;
+				var src = Players[CurrentFrontPlayer].gameObject.GetComponent<AudioSource>();
+				Players[CurrentFrontPlayer].SetTargetAudioSource( 0, src );
+
 				Players[CurrentFrontPlayer].Play();
 
-				SwitchState( State.CrossFading );
+				SwitchPlayState( PlayState.CrossFading );
 
 				break;
 			default:
@@ -175,66 +216,83 @@ public class Game : MonoBehaviour
 		}
 	}
 
-	void UpdateState( State state )
+	void UpdatePlayState( PlayState state )
 	{
-		CurrentStateTime += Time.deltaTime;
+		CurrentPlayStateTime += Time.deltaTime;
 
 		switch ( state )
 		{
-			case State.Playing:
+			case PlayState.Playing:
 				// Finished, play next clip or endcard
 				double curtime = Players[CurrentFrontPlayer].time;
-				double endtime = Players[CurrentFrontPlayer].clip.length - ( 1.0f / CrossFadeSpeed / 2 );
+				int ind = VideoOrder[CurrentVideo];
+				double endtime = Sharings[ind].Length - ( 1.0f / CrossFadeSpeed / 2 );
 
-				if ( curtime >= endtime && CurrentStateTime > 0.1f )
+				if ( curtime >= endtime && CurrentPlayStateTime > 0.1f )
 				{
 					CurrentVideo++;
-					if ( CurrentVideo < Sharings.Length )
+					if ( CurrentVideo < Sharings.Count )
 					{
 						SwitchPlayer();
 						PlayCurrentClip();
 
-						SwitchState( State.CrossFading );
+						SwitchPlayState( PlayState.CrossFading );
 					}
 					else
 					{
-						SwitchState( State.Endcard );
+						SwitchPlayState( PlayState.Endcard );
 						Ended = true;
 					}
 				}
 				break;
-			case State.CrossFading:
+			case PlayState.CrossFading:
 				var img = Players[CurrentFrontPlayer].GetComponentInParent<RawImage>();
-				float prog = CurrentStateTime * CrossFadeSpeed;
+				float prog = CurrentPlayStateTime * CrossFadeSpeed;
 				img.color = Color.Lerp( Color.clear, Color.white, prog );
 
 				if ( prog >= 1 && !Ended )
 				{
-					SwitchState( State.Playing );
+					SwitchPlayState( PlayState.Playing );
 				}
-				
+
 				if ( Ended )
 				{
-					MusicSources[CurrentFrontMusicPlayer].volume = Mathf.Lerp( 1, 0, CurrentStateTime / END_CARD_TIME );
+					// Lerp music track volume out
+					MusicSources[CurrentFrontMusicPlayer].volume = Mathf.Lerp( 1, 0, CurrentPlayStateTime / END_CARD_TIME * END_CARD_MUSIC_FADE_MULT );
+
+					// Lerp the end card credits in/out
+					float progress = CurrentPlayStateTime / END_CARD_TIME;
+					float a = 0;
+					float start = 0.5f;
+					float duration = 0.25f;
+					if ( progress >= start )
+					{
+						a = ( progress - start ) / duration;
+					}
+					if ( progress >= start + duration )
+					{
+						a = 1 - ( ( progress - start - duration ) / duration );
+					}
+					EndCardCredit.color = new Color( 1, 1, 1, a );
 				}
 
 				break;
-			case State.Endcard:
+			case PlayState.Endcard:
 				break;
 			default:
 				break;
 		}
 	}
 
-	void FinishState( State state )
+	void FinishPlayState( PlayState state )
 	{
 		switch ( state )
 		{
-			case State.Playing:
+			case PlayState.Playing:
 				break;
-			case State.CrossFading:
+			case PlayState.CrossFading:
 				break;
-			case State.Endcard:
+			case PlayState.Endcard:
 				break;
 			default:
 				break;
@@ -246,20 +304,23 @@ public class Game : MonoBehaviour
 	void PlayCurrentClip()
 	{
 		var ind = VideoOrder[CurrentVideo];
-		Players[CurrentFrontPlayer].clip = Sharings[ind].Clip;
+		Players[CurrentFrontPlayer].url = Sharings[ind].ClipURL;
 		Players[CurrentFrontPlayer].Play();
+		Players[CurrentFrontPlayer].audioOutputMode = VideoAudioOutputMode.None;
 
 		SharingCredit.text = Sharings[ind].Credit;
-		CurrentStateTime = 0;
+		CurrentPlayStateTime = 0;
 	}
 
 	void SwitchPlayer()
 	{
 		Players[CurrentFrontPlayer].transform.localPosition = new Vector3( 0, 0, -1 );
+		Players[CurrentFrontPlayer].audioOutputMode = VideoAudioOutputMode.None;
 
 		CurrentFrontPlayer = CurrentFrontPlayer == 0 ? 1 : 0;
 		Players[CurrentFrontPlayer].transform.localPosition = new Vector3( 0, 0, 0 );
 		Players[CurrentFrontPlayer].transform.parent.SetAsLastSibling();
+		Players[CurrentFrontPlayer].audioOutputMode = VideoAudioOutputMode.None;
 
 		// Make transparent when move to front
 		Players[CurrentFrontPlayer].GetComponentInParent<RawImage>().color = Color.clear;
@@ -270,27 +331,18 @@ public class Game : MonoBehaviour
 		VideoOrder[current] = raw;
 	}
 
-	public void PopulateVideoMenu()
+	public void AddVideo( string url, string credits, float length = -1 )
 	{
-		// Initial order (TODO move to when videos are added manually)
-		VideoOrder = new int[Sharings.Length];
-		for ( int i = 0; i < Sharings.Length; i++ )
+		Sharing share = new Sharing();
 		{
-			VideoOrder[i] = i;
+			share.ClipURL = url;
+			share.Credit = credits;
+			share.Length = length == -1 ? CLIP_LENGTH : length;
 		}
+		Sharings.Add( share );
+		VideoOrder.Add( VideoOrder.Count );
 
-		// TODO TEMP REMOVE
-		int index = 0;
-		foreach ( var video in Sharings )
-		{
-			Editor.Instance.AddVideo( index, "", video.Credit ); // TODO add url
-			index++;
-		}
-	}
-
-	public void AddVideo( string url )
-	{
-
+		Editor.Instance.AddVideo( VideoOrder.Count - 1, share.ClipURL, share.Credit );
 	}
 	#endregion
 
@@ -303,12 +355,17 @@ public class Game : MonoBehaviour
 
 	void StartMusic()
 	{
-		if ( false ) // TODO
+		if ( Musics.Length == 0 )
 		{
 			// If none defined, play default and hide credits
 			MusicCreditBar.SetActive( false );
 
 			NextMusicPlay = -1;
+
+			float remaining = CurrentTime % GenerativeMusic.length;
+			MusicSources[CurrentFrontMusicPlayer].clip = GenerativeMusic;
+			MusicSources[CurrentFrontMusicPlayer].Play();
+			MusicSources[CurrentFrontMusicPlayer].time = remaining;
 		}
 		else
 		{
@@ -439,12 +496,12 @@ public class Game : MonoBehaviour
 
 		// Get correct video at that time
 		float remaining = CurrentTime;
-		for ( int share = 0; share < Sharings.Length; share++ )
+		for ( int share = 0; share < Sharings.Count; share++ )
 		{
 			var ind = VideoOrder[share];
-			if ( Sharings[ind].Clip.length <= remaining )
+			if ( Sharings[ind].Length <= remaining )
 			{
-				remaining -= (float) Sharings[ind].Clip.length;
+				remaining -= (float) Sharings[ind].Length;
 			}
 			else
 			{
@@ -464,11 +521,11 @@ public class Game : MonoBehaviour
 		float timeleft = CurrentTime - (float) VideoLength;
 		if ( timeleft >= 0 )
 		{
-			SwitchState( State.Endcard );
+			SwitchPlayState( PlayState.Endcard );
 			Ended = true;
 			Players[CurrentFrontPlayer].time = timeleft;
 
-			CurrentStateTime = timeleft;
+			CurrentPlayStateTime = timeleft;
 		}
 	}
 	#endregion

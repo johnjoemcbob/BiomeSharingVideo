@@ -28,7 +28,6 @@ public class Editor : MonoBehaviour
 		BasePos = transform.localPosition;
 
 		// TODO TEMP
-		Game.Instance.PopulateVideoMenu();
 		Game.Instance.PopulateMusicMenu();
 	}
 
