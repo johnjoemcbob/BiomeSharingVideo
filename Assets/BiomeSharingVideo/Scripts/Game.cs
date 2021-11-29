@@ -32,6 +32,7 @@ public class Game : MonoBehaviour
 		public float Length;
 		public float Speed;
 		public float StartTime;
+		public float Scale;
 	}
 	[Serializable]
 	public struct SharingMusic
@@ -152,19 +153,11 @@ public class Game : MonoBehaviour
 			// johnjoemcbob Wallmasterr NiallEM jctwizard Henwuar DouglasFlinders
 			// shimmerwitch AllThingsTruly _kaymay
 			// susepicious tomdemajo GhostTyrant psalmlab
-			var root = "file:///E:/zOBS Video Recordings/biome sharings/21-11-19/";
-			AddVideo( root + "smart1.mp4", "@psalmlab", 6 );
-			AddVideo( root + "smart2.mp4", "@psalmlab", 6 );
-			AddVideo( root + "john1.mp4", "@johnjoemcbob", 6, 3, 120 );
-			AddVideo( root + "niall1.mp4", "@NiallEM", 6, 1, 30 );
-			AddAudioVisualiser( "@Henwuar", 6 );
-			AddVideo( root + "john2.mp4", "@johnjoemcbob", 6, 2, 35 );
-			AddVideo( root + "niall2.mp4", "@NiallEM", 6, 8, 20 );
-			AddVideo( root + "james1.mp4", "@jctwizard", 6 );
-			AddVideo( root + "james2.mp4", "@jctwizard", 6 );
-			AddVideo( root + "caspar.mp4", "@GhostTyrant", 12 );
-			AddAudioVisualiser( "@Henwuar", 6 );
-			AddVideo( root + "tom.mp4", "@tomdemajo", 12 );
+			var root = "file:///E:/zOBS Video Recordings/biome sharings/21-11-26/";
+			AddVideo( root + "john1.mp4", "@johnjoemcbob", 9, 3, 0, 1.8f );
+			AddVideo( root + "john2.mp4", "@johnjoemcbob", 3, 1, 0, 1.8f );
+			AddVideo( root + "james.mp4", "@jctwizard", 12, 2 );
+			AddVideo( root + "niall.mp4", "@NiallEM", 12, 1, 24 );
 		}
 
 		CurrentVideo = TestVideoStart;
@@ -340,6 +333,7 @@ public class Game : MonoBehaviour
 
 				SwitchPlayer();
 				Players[CurrentFrontPlayer].GetComponentInParent<RawImage>().texture = Players[CurrentFrontPlayer].targetTexture; // Return to video player
+				Players[CurrentFrontPlayer].GetComponentInParent<RawImage>().transform.localScale = Vector3.one;
 				Players[CurrentFrontPlayer].url = EndCards[CurrentEndCard].ClipURL; // TODO randomise
 
 				Players[CurrentFrontPlayer].audioOutputMode = VideoAudioOutputMode.AudioSource;
@@ -476,6 +470,7 @@ public class Game : MonoBehaviour
 
 		// Apply the correct texture
 		Players[CurrentFrontPlayer].GetComponentInParent<RawImage>().texture = tex;
+		Players[CurrentFrontPlayer].GetComponentInParent<RawImage>().transform.localScale = Vector3.one * Sharings[ind].Scale;
 
 		SharingCredit.text = Sharings[ind].Credit;
 		CurrentPlayStateTime = 0;
@@ -529,7 +524,7 @@ public class Game : MonoBehaviour
 	#endregion
 
 	#region Add Visual Element
-	public void AddVideo( string url, string credits, float length = -1, float speed = 1, float starttime = 0 )
+	public void AddVideo( string url, string credits, float length = -1, float speed = 1, float starttime = 0, float scale = 1 )
 	{
 		Sharing share = new Sharing();
 		{
@@ -539,6 +534,7 @@ public class Game : MonoBehaviour
 			share.Length = length == -1 ? CLIP_LENGTH : length;
 			share.Speed = speed;
 			share.StartTime = starttime;
+			share.Scale = scale;
 		}
 		Sharings.Add( share );
 		VideoOrder.Add( VideoOrder.Count );
@@ -553,6 +549,7 @@ public class Game : MonoBehaviour
 			share.Type = ShareType.AudioVisualiser;
 			share.Credit = credits;
 			share.Length = length == -1 ? CLIP_LENGTH : length;
+			share.Scale = 1;
 		}
 		Sharings.Add( share );
 		VideoOrder.Add( VideoOrder.Count );

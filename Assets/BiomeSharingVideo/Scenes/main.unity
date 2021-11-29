@@ -2409,7 +2409,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 531ea855c1b07614baeb68a7d8d2eb72, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  CurrentEndCard: 6
+  CurrentEndCard: 7
   CrossFadeSpeed: 2
   TestVideoStart: 0
   Players:
@@ -2428,13 +2428,7 @@ MonoBehaviour:
   AddMusicPanel: {fileID: 903071904}
   EditVideoPanel: {fileID: 1791162350}
   GenerativeMusic: {fileID: 8300000, guid: f708bb86f4d161a4192d638bebd54f6a, type: 3}
-  Musics:
-  - Clip: {fileID: 8300000, guid: 8dbd56a3c01fbba44b705b0a7a0a2c3a, type: 3}
-    Credit: '@Henwuar'
-  - Clip: {fileID: 8300000, guid: 2eab73003d1bd0a4ca9eb76aa0a4e0c3, type: 3}
-    Credit: '@Henwuar'
-  - Clip: {fileID: 8300000, guid: f7772f6e21bd62d42b854ad58d8a299f, type: 3}
-    Credit: '@Henwuar'
+  Musics: []
   EndCards:
   - ClipURL: file:///E:/Projects/BiomeSharingVideo/Assets/BiomeSharingVideo/Videos/Endcards/01_niall.mp4
     Credit: 
