@@ -152,12 +152,11 @@ public class Game : MonoBehaviour
 		{
 			// johnjoemcbob Wallmasterr NiallEM jctwizard Henwuar DouglasFlinders
 			// shimmerwitch AllThingsTruly _kaymay
-			// susepicious tomdemajo GhostTyrant psalmlab
-			var root = "file:///E:/zOBS Video Recordings/biome sharings/21-11-26/";
-			AddVideo( root + "john1.mp4", "@johnjoemcbob", 9, 3, 0, 1.8f );
-			AddVideo( root + "john2.mp4", "@johnjoemcbob", 3, 1, 0, 1.8f );
-			AddVideo( root + "james.mp4", "@jctwizard", 12, 2 );
-			AddVideo( root + "niall.mp4", "@NiallEM", 12, 1, 24 );
+			// susepicious tomdemajo maltron3D GhostTyrant psalmlab
+			var root = "file:///D:/zOBS Video Recordings/biome sharings/22-04-08/";
+			AddVideo( root + "niall1.mp4", "@NiallEM", 8, 1 );
+			AddVideo( root + "niall2.mp4", "@NiallEM", 4, 3 );
+			AddVideo( root + "john.mp4", "@johnjoemcbob", 12, 1 );
 		}
 
 		CurrentVideo = TestVideoStart;
@@ -450,11 +449,22 @@ public class Game : MonoBehaviour
 		switch ( Sharings[ind].Type )
 		{
 			case ShareType.Video:
-				Players[CurrentFrontPlayer].url = Sharings[ind].ClipURL;
-				Players[CurrentFrontPlayer].playbackSpeed = Sharings[ind].Speed;
-				Players[CurrentFrontPlayer].Play();
-				StartCoroutine( WaitForPlayerPrepared( Players[CurrentFrontPlayer], Sharings[ind].StartTime ) );
+				// Setup in case its not prepared (i.e. first video)
+				if ( Players[CurrentFrontPlayer].url != Sharings[ind].ClipURL )
+				{
+					Players[CurrentFrontPlayer].url = Sharings[ind].ClipURL;
+					Players[CurrentFrontPlayer].playbackSpeed = Sharings[ind].Speed;
+					Players[CurrentFrontPlayer].time = Sharings[ind].StartTime;
+					Players[CurrentFrontPlayer].Prepare();
+				}
+				StartCoroutine( WaitForPlayerPrepared( Players[CurrentFrontPlayer], Sharings[ind].StartTime, false ) );
 				Players[CurrentFrontPlayer].audioOutputMode = VideoAudioOutputMode.None;
+
+				// Delayed prepare the next video too!
+				if ( Sharings.Count > ind + 1 )
+				{
+					StartCoroutine( DelayedPrepNextVideo( ind ) );
+				}
 
 				break;
 			case ShareType.AudioVisualiser:
@@ -476,9 +486,21 @@ public class Game : MonoBehaviour
 		CurrentPlayStateTime = 0;
 	}
 
-	IEnumerator WaitForPlayerPrepared( VideoPlayer player, float time = 0 )
+	IEnumerator DelayedPrepNextVideo( int ind )
 	{
-		while ( !player.canSetTime || !player.isPrepared || player.frame == -1 )
+		yield return new WaitForSeconds( 1 );
+
+		int other = CurrentFrontPlayer == 0 ? 1 : 0;
+		Players[other].url = Sharings[ind + 1].ClipURL;
+		Players[other].playbackSpeed = Sharings[ind + 1].Speed;
+		Players[other].time = Sharings[ind + 1].StartTime;
+		Players[other].Prepare();
+		StartCoroutine( WaitForPlayerPrepared( Players[other], Sharings[ind + 1].StartTime, true ) );
+	}
+
+	IEnumerator WaitForPlayerPrepared( VideoPlayer player, float time = 0, bool pause = false )
+	{
+		while ( !player.canSetTime || !player.isPrepared )// || player.frame == -1 )
 		{
 			yield return new WaitForEndOfFrame();
 		}
@@ -486,6 +508,11 @@ public class Game : MonoBehaviour
 		Debug.Log( "prepped, set time; " + time );
 		var ind = VideoOrder[CurrentVideo];
 		player.time = time;
+		player.Play();
+		if ( pause )
+		{
+			player.Pause();
+		}
 		//player.frame = (long) ( time * player.frameRate );
 
 		Debug.Log( player.time );
